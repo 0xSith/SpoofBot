@@ -103,7 +103,7 @@ def send_telegram_notification(message, value, usd_value, tx_hash, blockchain):
     # used to send a POST request to the Telegram API with the constructed URL and payload
     response = requests.post(url, data=payload)
     #prints a confirmation message with the current timestamp and the content of the notification message and returns the response object.
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram notification sent with message: {message} \n->💹 : {value} {blockchain.upper()} (${usd_value:.2f})\n")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram notification sent with message: {message} \n->💹 : {value} {blockchain.upper()} (${usd_value:.2f})\n->📃 : https://etherscan.io/tx/{tx_hash}\n")
     return response
 
 
@@ -183,7 +183,7 @@ def monitor_wallets():
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            message = f'\n->🚨 Incoming transaction detected on {wallet_address} aka {wallet_name} \n->📃 : https://etherscan.io/tx/{tx_hash}'
+                            message = f'\n->🚨 Incoming transaction detected on {wallet_address} aka {wallet_name}'
                             send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
@@ -192,7 +192,7 @@ def monitor_wallets():
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
                             #sends the notification message using the send_telegram_notification function
-                            message = f'\n->🚨 Outgoing transaction detected on {wallet_address} aka {wallet_name} \n->📃 : https://etherscan.io/tx/{tx_hash}'
+                            message = f'\n->🚨 Outgoing transaction detected on {wallet_address} aka {wallet_name}'
                             send_telegram_notification(message, value, usd_value, tx['hash'], blockchain )
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
