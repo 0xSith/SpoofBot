@@ -14,6 +14,42 @@ ETHERSCAN_API_KEY = os.environ.get("EtherscanAPI")
 BSCSCAN_API_KEY = os.environ.get("BscScanAPI")
 TELEGRAM_BOT_TOKEN = os.environ.get("TelegramBotToken")
 TELEGRAM_CHAT_ID = os.environ.get("TelegramChatID")
+AlCHEMY_KEY = os.environ.get("AlchemyKey")
+
+
+# #ALCHEMY-API KEY
+# AlchemyKey = "oF5h_6DhZgvo4-iQn1p2u67COdWJRyTf"
+
+#function checkAddress to check either Wallet or Contract
+#               with 1 parameter as transaction address
+def checkAdress(address):
+    #API request url
+    url = "https://eth-mainnet.g.alchemy.com/v2/" + AlCHEMY_KEY
+    
+#SETTINGS:
+    #payload with the trasaction address
+    payload = {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "params": [address, "latest"],
+        "method": "eth_getCode",
+    }
+    #header
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json"
+    }
+
+    #Call/request API and save the result to response.
+    response = requests.post(url, json=payload, headers=headers)
+    
+    #check condition to return the Wallet Type
+    if len(response.text) > 38 :
+        return("contract")
+    else:
+        return("wallet")
+
+
 
 
 # Define some helper functions, HANNDLE respond within wallet
@@ -183,19 +219,18 @@ def monitor_wallets():
                 time.sleep(10)
 
 
-
-
-
-#Creates add_wallet function
-def add_wallet(wallet_address, blockchain, name):
+#Creates add_wallet function apply
+#       4 params which including wallet_addy, blockchain, name, address
+def add_wallet(wallet_address, blockchain, name, walletType):
     file_path = "watched_wallets.txt"
+    #wallet_type will storage the wallet type [could be contract or wallet]
     #statement to open the file in append mode
     with open(file_path, 'a') as f:
-        #  f.write(f'{blockchain}:{wallet_address}\n'): Writes the formatted string {blockchain}:{wallet_address}\n to the file f.
-        #  The f-string allows you to embed the values of blockchain and wallet_address in the string.
+        #  f.write(f'{blockchain}:{wallet_address}\n'): Writes the formatted string
+        #                                {blockchain}:{wallet_address}\n to the file f.
+        #  The f-string allows you to embed the values of blockchain and wallet_address in the string. 
         #  The '\n' adds a newline character at the end of the line.
         f.write(f'{blockchain}:{wallet_address}:{name}\n')
-
 
 
 
