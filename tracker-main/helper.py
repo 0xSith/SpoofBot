@@ -183,7 +183,7 @@ def monitor_wallets():
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            message = f'\n->🚨 Incoming transaction detected on {wallet_address} aka {wallet_name}'
+                            message = f'\n🚨 Incoming ⬅️  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
                             send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
@@ -191,8 +191,7 @@ def monitor_wallets():
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            #sends the notification message using the send_telegram_notification function
-                            message = f'\n->🚨 Outgoing transaction detected on {wallet_address} aka {wallet_name}'
+                            message = f'\n->🚨 Outgoing ➡️  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
                             send_telegram_notification(message, value, usd_value, tx['hash'], blockchain )
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
