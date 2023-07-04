@@ -5,7 +5,7 @@ import time
 import re
 from web3 import Web3
 from dotenv import load_dotenv
-
+import telegram
 
 
 load_dotenv()
@@ -15,10 +15,6 @@ BSCSCAN_API_KEY = os.environ.get("BscScanAPI")
 TELEGRAM_BOT_TOKEN = os.environ.get("TelegramBotToken")
 TELEGRAM_CHAT_ID = os.environ.get("TelegramChatID")
 AlCHEMY_KEY = os.environ.get("AlchemyKey")
-
-
-# #ALCHEMY-API KEY
-# AlchemyKey = "oF5h_6DhZgvo4-iQn1p2u67COdWJRyTf"
 
 #function checkAddress to check either Wallet or Contract
 #               with 1 parameter as transaction address
@@ -85,25 +81,52 @@ def get_wallet_transactions(wallet_address, blockchain, wallet_name):
 
 
 #HANDLE TELEGRAM with 4 args
-def send_telegram_notification(message, value, usd_value, tx_hash, blockchain):
+def send_telegram_notification(wallet_address, message, value, usd_value, tx_hash, blockchain):
     #Determind which blockchain is in use with a specific output.
     if blockchain == 'eth':
-        etherscan_link = f'<a href="https://etherscan.io/tx/{tx_hash}">Etherscan</a>'
+        etherscan_link = f'<a href="https://etherscan.io/tx/{tx_hash}">TXN</a>'
     elif blockchain == 'bnb':
-        etherscan_link = f'<a href="https://bscscan.com/tx/{tx_hash}">BscScan</a>'
+        etherscan_link = f'<a href="https://bscscan.com/tx/{tx_hash}">Bsc</a>'
     else:
         raise ValueError('Invalid blockchain specified')
 
     #save telegram message command in URL with f-string literal (type of string that can be pass value in)
     url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
 
+
+    #fetch DexScreener URL for the transaction
+    DexScreener_link = f'<a href="https://dexscreener.com/ethereum/{wallet_address}">CHART</a>'
+    
+    #this will be the format send to the telegram
+        #-                         --FLASHBOT--                             -
+        #⬅️ IN     " exchange in something " 
+        #➡️  OUT " exchange out something " 
+        #💱 : 0.029735740650255683 ETH ($57.7284)
+        # TXN             CHART               BOT
+
+    telegramMessage = f'- \
+                        --{message}-- \
+                            -\n\n⬅️ IN:     " exchange in something " \n➡️ OUT: " exchange out something " \n💱 : {value} {blockchain.upper()} (${usd_value:.4f})\n {etherscan_link} \
+            {DexScreener_link}   \
+            BOT     '
+    
+    #Wallet that can be copy by a click
+    walletAddressCopy = f" `{wallet_address}` "
+
     #use to send format message, created to specify the chat ID, text message, and other parameters and storage in payload
-    payload = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': f'{message}: {etherscan_link}\nValue: {value:.6f} {blockchain.upper()} (${usd_value:.2f})',
-               'parse_mode': 'HTML'}
+    payload = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': {telegramMessage}, 'parse_mode': 'HTML' }
+
     # used to send a POST request to the Telegram API with the constructed URL and payload
     response = requests.post(url, data=payload)
+
+    # used to send a wallet adddress as a second message that can be copy by clicked on it
+    payload2 = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': {walletAddressCopy}, 'parse_mode': telegram.ParseMode.MARKDOWN }
+    # send out the message contain wallet address that can be copy by click on it
+    response2 = requests.post(url, data=payload2)
+
     #prints a confirmation message with the current timestamp and the content of the notification message and returns the response object.
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram notification sent with message: {message} \n->💹 : {value} {blockchain.upper()} (${usd_value:.2f})\n->📃 : https://etherscan.io/tx/{tx_hash}\n")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]\n Telegram notification sent with message: {message} \n-> Value : {value} {blockchain.upper()} (${usd_value:.2f})\n-> Address : {etherscan_link}\n")
+
     return response
 
 
@@ -183,16 +206,22 @@ def monitor_wallets():
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            message = f'\n🚨 Incoming ⬅️  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
-                            send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
+                            # message = f'⬅️🚨 Incoming   transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
+
+                            #new message that generate a Wallet name as a Hyperlink that user can click
+                            message = f'<a href="https://etherscan.io/tx/{tx_hash}">{wallet_name}</a>'
+
+                            # message = f'\n🚨 Incoming ⬅️  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
+                            send_telegram_notification(wallet_address, message, value, usd_value, tx['hash'], blockchain)
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
                         elif tx['from'].lower() == wallet_address.lower():
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            message = f'\n->🚨 Outgoing ➡️  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
-                            send_telegram_notification(message, value, usd_value, tx['hash'], blockchain )
+                            # message = f'➡️ 🚨 Outgoing  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
+                            message = f'<a href="https://etherscan.io/tx/{tx_hash}">{wallet_name}</a>' 
+                            send_telegram_notification(wallet_address, message, value, usd_value, tx['hash'], blockchain )
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
 
