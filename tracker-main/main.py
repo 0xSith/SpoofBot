@@ -37,53 +37,52 @@ Example: /list ETH or just /list
 #Creates add function apply
 def add(update, context):
     #if there are not enough informations/arguments as update and context return ERORR
-    if len(context.args) < 4:
-        context.bot.send_message(chat_id=update.message.chat_id, text="Please provide a blockchain + Wallet address + Name + address type.\n->Example: /add WalletType 0xadress WalletName AddressType")
+    if len(context.args) < 2:
+        context.bot.send_message(chat_id=update.message.chat_id, text="Please provide a blockchain + Wallet address + Name + address type.\n->Example: /add blockchain 0xadress WalletName (blockchain will be set as ETH if not provided)")
         return
 
+
+    if len(context.args[0]) > 4:
     #converts the blockchain name to lowercase for consistency.
-    blockchain = context.args[0].lower()
-    #Assigns the second argument (context.args[1]) to the wallet_address variable.
-    wallet_address = context.args[1]
-    #Assigns the third argument (context.args[2]) to the wallet_name variable.
-    wallet_name = context.args[2]
-    #Assigns the forth argument to the walletType variable with the address user input (wallet_address = context.args[1])
-    wallet_type = (checkAdress(context.args[1])).lower()
+        blockchain = "eth"
+        #Assigns the second argument (context.args[1]) to the wallet_address variable.
+        wallet_address = context.args[0]
+        #Assigns the third argument (context.args[2]) to the wallet_name variable.
+        wallet_name = context.args[1]
+        #Assigns the forth argument to the walletType variable with the address user input (wallet_address = context.args[1])
+        wallet_type = (checkAdress(context.args[0])).lower()
+            
+    
+    else: 
+        blockchain = context.args[0].lower()
+        #Assigns the second argument (context.args[1]) to the wallet_address variable.
+        wallet_address = context.args[1]
+        #Assigns the third argument (context.args[2]) to the wallet_name variable.
+        wallet_name = context.args[2]
+        #Assigns the forth argument to the walletType variable with the address user input (wallet_address = context.args[1])
+        wallet_type = (checkAdress(context.args[1])).lower()
 
 
-    #check if wallet type is match with user input
-    if wallet_type == (context.args[3]).lower():
-        # Check if the wallet address is in the correct format for the specified blockchain
-        if blockchain == 'eth':
-            if not re.match(r'^0x[a-fA-F0-9]{40}$', wallet_address):
-                context.bot.send_message(chat_id=update.message.chat_id, text=f"{wallet_address} is not a valid Ethereum wallet address.")
-                return
-        elif blockchain == 'bnb':
-            if not re.match(r'^0x[a-fA-F0-9]{40}$', wallet_address):
-                context.bot.send_message(chat_id=update.message.chat_id, text=f"{wallet_address} is not a valid Binance Smart Chain wallet address.")
-                return
-            # If the wallet address is not in the correct format, 
-            # it sends a message indicating that the address is not valid for the specified blockchain and returns.
-        else:
-            context.bot.send_message(chat_id=update.message.chat_id, text=f"Invalid blockchain specified: {blockchain}")
+    if blockchain == 'eth':
+        if not re.match(r'^0x[a-fA-F0-9]{40}$', wallet_address):
+            context.bot.send_message(chat_id=update.message.chat_id, text=f"{wallet_address} is not a valid Ethereum wallet address.")
             return
-        
-        #If all the validation checks pass, it calls the add_wallet function with the wallet_address 
-        # and blockchain as arguments to add the wallet to the list of watched wallets.
-        add_wallet(wallet_address, blockchain, wallet_name, wallet_type)
-        #it sends a message indicating that the wallet address has been added to the list of watched wallets.
-        message = f'Added {wallet_type} {wallet_name} to the list of watched {blockchain.upper()} wallets.'
-        context.bot.send_message(chat_id=update.message.chat_id, text=message)
-        
-
-    #if wallet type does not match with user input
+    elif blockchain == 'bnb':
+        if not re.match(r'^0x[a-fA-F0-9]{40}$', wallet_address):
+            context.bot.send_message(chat_id=update.message.chat_id, text=f"{wallet_address} is not a valid Binance Smart Chain wallet address.")
+            return
+        # If the wallet address is not in the correct format, 
+        # it sends a message indicating that the address is not valid for the specified blockchain and returns.
     else:
-        if  wallet_type == "wallet":
-            context.bot.send_message(chat_id=update.message.chat_id, text=f"ERROR\nThe address type above is a Wallet, not Contract")
-            return
-        if  wallet_type == "contract":
-            context.bot.send_message(chat_id=update.message.chat_id, text=f"ERROR\nThe address type above is a Contract, not Wallet")
-            return
+        context.bot.send_message(chat_id=update.message.chat_id, text=f"Invalid blockchain specified: {blockchain}")
+        return
+        
+    #If all the validation checks pass, it calls the add_wallet function with the wallet_address 
+    # and blockchain as arguments to add the wallet to the list of watched wallets.
+    add_wallet(wallet_address, blockchain, wallet_name, wallet_type)
+    #it sends a message indicating that the wallet address has been added to the list of watched wallets.
+    message = f'Added {wallet_type} {wallet_name} to the list of watched {blockchain.upper()} wallets.'
+    context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
 
