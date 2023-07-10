@@ -3,10 +3,11 @@ import json
 import requests
 import time
 import re
-from web3 import Web3
 from dotenv import load_dotenv
+from web3 import Web3
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-
+# from eth_defi.token import create_token
 
 load_dotenv()
 
@@ -88,23 +89,41 @@ def get_wallet_transactions(wallet_address, blockchain, wallet_name):
 def send_telegram_notification(message, value, usd_value, tx_hash, blockchain):
     #Determind which blockchain is in use with a specific output.
     if blockchain == 'eth':
-        etherscan_link = f'<a href="https://etherscan.io/tx/{tx_hash}">Etherscan</a>'
+        etherscan_link = f"https://etherscan.io/tx/{tx_hash}"
     elif blockchain == 'bnb':
         etherscan_link = f'<a href="https://bscscan.com/tx/{tx_hash}">BscScan</a>'
     else:
         raise ValueError('Invalid blockchain specified')
+    
+
+# Create the inline keyboard buttons 
+    buttons = [
+        [InlineKeyboardButton("Etherscan", url = etherscan_link),
+         InlineKeyboardButton("Option 2", url="https://example.com/option2"),
+         InlineKeyboardButton("Option 3", url="https://example.com/option3")]
+    ]
+    keyboard = InlineKeyboardMarkup(buttons)
+
 
     #save telegram message command in URL with f-string literal (type of string that can be pass value in)
     url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
 
     #use to send format message, created to specify the chat ID, text message, and other parameters and storage in payload
-    payload = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': f'{message}: {etherscan_link}\nValue: {value:.6f} {blockchain.upper()} (${usd_value:.2f})',
-               'parse_mode': 'HTML'}
-    # used to send a POST request to the Telegram API with the constructed URL and payload
+    # : {etherscan_link}\nValue: {value:.6f} {blockchain.upper()} (${usd_value:.2f})
+    payload = {
+        'chat_id': f'{TELEGRAM_CHAT_ID}',
+        'text': f'{message}',
+        'parse_mode': 'HTML',
+        'reply_markup': keyboard.to_json()
+    }
+    # Send a POST request to the Telegram API with the constructed URL and payload
     response = requests.post(url, data=payload)
     #prints a confirmation message with the current timestamp and the content of the notification message and returns the response object.
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram notification sent with message: {message}, value: {value} {blockchain.upper()} (${usd_value:.2f})")
     return response
+
+
+
 
 
 
@@ -183,7 +202,18 @@ def monitor_wallets():
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            message = f'🚨 Incoming transaction detected on {wallet_address}'
+                            
+                            message = f'🚨 Incoming transaction detected on {wallet_name}'
+
+                            # message2 = f""" 
+                            # \r\r\r\r\r {wallet_name} \r\r\r\r
+                            # - Value: {value} ({usd_value})
+                            # - Token:...
+                            # - Amount: ...
+                            # --------------------
+
+                            # """
+
                             send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
@@ -191,9 +221,19 @@ def monitor_wallets():
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
+                            etherscan_link = f'<a href="https://etherscan.io/tx/{tx["hash"]}">Etherscan</a>'
                             #sends the notification message using the send_telegram_notification function
-                            message = f'🚨 Outgoing transaction detected on {wallet_address}'
-                            send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
+                            # message = f'🚨 Outgoing transaction detected on {wallet_name}'
+                            message2 = f""" 
+🚨 Outgoing transaction detected on {wallet_name}
+- Value: {value:.6f} ETH (${usd_value:.2f})
+- Token: ...
+- Amount: ...
+--------------------
+Chart | {blockchain.upper()}
+                            """
+
+                            send_telegram_notification(message2, value, usd_value, tx['hash'], blockchain)
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
 
@@ -235,17 +275,19 @@ def add_wallet(wallet_address, blockchain, name, walletType):
 
 
 #create remove_wallet function
-def remove_wallet(wallet_address, blockchain,wallet_name):
-    file_path = "watched_wallets.txt"
-    temp_file_path = "temp.txt"
+def remove_wallet(wallet):
 
-    #open and read file_path, at same time and with open will close when its over,
-    #open and write temp_file_path
-    with open(file_path, 'r') as f, open(temp_file_path, 'w') as temp_f:
-        #iterates over each line in original file
-        for line in f:
-            #Writes the line to the temporary file temp_f if it doesn't match the wallet address.
-            if line.strip() != f'{blockchain}:{wallet_address}:{wallet_name}':
-                temp_f.write(line)
-    #Replaces the original file with the temporary file. This effectively removes the wallet address from the original file.
-    os.replace(temp_file_path, file_path)
+    with open("watched_wallets.txt", "r") as file:
+        lines = file.readlines()
+
+    # Search for the wallet entry based on the wallet name or wallet address
+    for index, line in enumerate(lines):
+        blockchain, wallet_address, wallet_name = line.strip().split(":")
+        if wallet == wallet_address or wallet == wallet_name:
+            # Remove the matching wallet entry from the list
+            del lines[index]
+            break
+
+    # Write the updated wallet list back to the file
+    with open("watched_wallets.txt", "w") as file:
+        file.writelines(lines)
