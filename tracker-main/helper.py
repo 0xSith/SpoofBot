@@ -5,7 +5,10 @@ import time
 import re
 from web3 import Web3
 from dotenv import load_dotenv
+import hyperlink
 import telegram
+import pyperclip
+from telegram import ParseMode
 
 
 load_dotenv()
@@ -15,6 +18,8 @@ BSCSCAN_API_KEY = os.environ.get("BscScanAPI")
 TELEGRAM_BOT_TOKEN = os.environ.get("TelegramBotToken")
 TELEGRAM_CHAT_ID = os.environ.get("TelegramChatID")
 AlCHEMY_KEY = os.environ.get("AlchemyKey")
+
+
 
 #function checkAddress to check either Wallet or Contract
 #               with 1 parameter as transaction address
@@ -45,28 +50,63 @@ def checkAdress(address):
     else:
         return("wallet")
 
+def checkTxnType(methodId,TransferOut):
+    swap = ["0x791ac947","0xb6f9de95","0x12aa3caf"]
+    approveOrRevoke = "0x095ea7b3"
+    execute = "0x3593564c"
+    transferOrReceived = "0x"
+    updateState = "0x77552641"
+
+    
+    if methodId in swap:
+        return "Swap"
+    if methodId == approveOrRevoke:
+        return "⭐ Approve"
+        # return "⭐ Approve Or Revoke"
+    if methodId == execute:
+        return "Execute"
+    if methodId == transferOrReceived:
+        if TransferOut == 0:
+            return "Received"
+        else:
+            return "Transfer Out"
+    if methodId == updateState:
+        return "UpdateState"
+    else:
+        return "new type - " + methodId
 
 
 
 # Define some helper functions, HANNDLE respond within wallet
 def get_wallet_transactions(wallet_address, blockchain, wallet_name):
     if blockchain == 'eth':
-        url = f'https://api.etherscan.io/api?module=account&action=txlist&address={wallet_address}&sort=desc&apikey={ETHERSCAN_API_KEY}'
+        url = f'https://api.etherscan.com/api?module=account&action=txlist&address={wallet_address}&sort=desc&apikey={ETHERSCAN_API_KEY}'
+        # url_log = f'https://api.etherscan.io/api?module=account&action=tokentx&address={wallet_address}&startblock=0&endblock=999999999&sort=asc&apikey={ETHERSCAN_API_KEY}'
     elif blockchain == 'bnb':
+
         url = f'https://api.bscscan.com/api?module=account&action=txlist&address={wallet_address}&sort=desc&apikey={BSCSCAN_API_KEY}'
     else:
         raise ValueError('Invalid blockchain specified')
 
+
+
     #The function then sends a GET request to the API URL using
     #The requests.get() function and assigns the response to the response variable.
     response = requests.get(url)
+
     #Base on response above and run text through it
     data = json.loads(response.text)
 
+
+    # response2 = requests.get(url_log)
+    # data_log = json.loads(response2.text)
+
     #If the key 'result' exists in the data dictionary, it assigns the corresponding value to the result variable.
     #If the key 'result' doesn't exist in the data dictionary, it assigns an empty list ([]) as the default value for result.
+    #Fetch data from API and storage in result?
     result = data.get('result', [])
-
+    
+    # print(data_log)
     #This line checks if the variable result is not an instance of the list class.
     #If result is not a list, it indicates an error in fetching the transactions.
     #       This could happen if the API response doesn't contain the expected data structure.
@@ -80,8 +120,9 @@ def get_wallet_transactions(wallet_address, blockchain, wallet_name):
 
 
 
+
 #HANDLE TELEGRAM with 4 args
-def send_telegram_notification(wallet_address, message, value, usd_value, tx_hash, blockchain):
+def send_telegram_notification(wallet_address, message, value, usd_value, tx_hash, blockchain, tx_methodId,TransferOut):
     #Determind which blockchain is in use with a specific output.
     if blockchain == 'eth':
         etherscan_link = f'<a href="https://etherscan.io/tx/{tx_hash}">TXN</a>'
@@ -104,25 +145,37 @@ def send_telegram_notification(wallet_address, message, value, usd_value, tx_has
         #💱 : 0.029735740650255683 ETH ($57.7284)
         # TXN             CHART               BOT
 
+    tx_Type = checkTxnType(tx_methodId,TransferOut)
+
     telegramMessage = f'- \
                         --{message}-- \
-                            -\n\n⬅️ IN:     " exchange in something " \n➡️ OUT: " exchange out something " \n💱 : {value} {blockchain.upper()} (${usd_value:.4f})\n {etherscan_link} \
-            {DexScreener_link}   \
-            BOT     '
+                            -\n------------------------------------------------------------------------------------\n💱 : {value} {blockchain.upper()} (${usd_value:.4f})\n🟢 IN:     " exchange in something " \
+    -    {tx_Type}\n🔴 OUT: " exchange out something "\n------------------------------------------------------------------------------------\n {etherscan_link} \
+                     {DexScreener_link}        \
+                 BOT     \n'
     
     #Wallet that can be copy by a click
-    walletAddressCopy = f" `{wallet_address}` "
+    walletAddressCopy = f'<code>{wallet_address}</code>'
 
+    combined_message = f'{telegramMessage}\n{walletAddressCopy}'
     #use to send format message, created to specify the chat ID, text message, and other parameters and storage in payload
-    payload = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': {telegramMessage}, 'parse_mode': 'HTML' }
+    payload = {
+        'chat_id': TELEGRAM_CHAT_ID,
+        'text': telegramMessage + '\n\n' + walletAddressCopy,
+        'parse_mode': ParseMode.HTML,
+        'disable_web_page_preview': True
+    }
 
+    # payload = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': {telegramMessage}, 'parse_mode': 'HTML' }
     # used to send a POST request to the Telegram API with the constructed URL and payload
     response = requests.post(url, data=payload)
 
     # used to send a wallet adddress as a second message that can be copy by clicked on it
-    payload2 = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': {walletAddressCopy}, 'parse_mode': telegram.ParseMode.MARKDOWN }
+    # payload2 = {'chat_id': f'{TELEGRAM_CHAT_ID}', 'text': {walletAddressCopy}, 'parse_mode': telegram.ParseMode.MARKDOWN }
     # send out the message contain wallet address that can be copy by click on it
-    response2 = requests.post(url, data=payload2)
+    # response2 = requests.post(url, data=payload2)
+
+    # payload = {'chat_id': f'{TELEGRAM_CHAT_ID}', text=combined_message, parse_mode=telegram.ParseMode.HTML}
 
     #prints a confirmation message with the current timestamp and the content of the notification message and returns the response object.
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]\n Telegram notification sent with message: {message} \n-> Value : {value} {blockchain.upper()} (${usd_value:.2f})\n-> Address : {etherscan_link}\n")
@@ -192,9 +245,16 @@ def monitor_wallets():
             for wallet in watched_wallets:
                 blockchain, wallet_address, wallet_name = wallet.split(':')
                 transactions = get_wallet_transactions(wallet_address, blockchain, wallet_name)
+
                 for tx in transactions:
                     tx_hash = tx['hash']
                     tx_time = int(tx['timeStamp'])
+                    #
+                    tx_methodId = tx["methodId"]
+                    tx_from = tx["from"]
+                    tx_to = tx["to"]
+                    
+
 
                     # checks if it is a new transaction by comparing the transaction hash with the latest_tx_hashes dictionary.
                     #AND
@@ -203,25 +263,26 @@ def monitor_wallets():
                     if tx_hash not in latest_tx_hashes and tx_time > last_run_time:
 
                         if tx['to'].lower() == wallet_address.lower():
+                            TransferOut = 0
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            # message = f'⬅️🚨 Incoming   transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
+                            # message = f'\n⬅️🚨 Incoming   transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
 
                             #new message that generate a Wallet name as a Hyperlink that user can click
-                            message = f'<a href="https://etherscan.io/tx/{tx_hash}">{wallet_name}</a>'
+                            message = f'<a href="https://etherscan.io/address/{wallet_address}">{wallet_name}</a>'
 
-                            # message = f'\n🚨 Incoming ⬅️  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
-                            send_telegram_notification(wallet_address, message, value, usd_value, tx['hash'], blockchain)
+                            send_telegram_notification(wallet_address, message, value, usd_value, tx['hash'], blockchain, tx_methodId,TransferOut)
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
                         elif tx['from'].lower() == wallet_address.lower():
+                            TransferOut = 1
                             # Convert from wei to ETH or BNB
                             value = float(tx['value']) / 10**18
                             usd_value = value * (eth_usd_price if blockchain == 'eth' else bnb_usd_price) # Calculate value in USD
-                            # message = f'➡️ 🚨 Outgoing  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
-                            message = f'<a href="https://etherscan.io/tx/{tx_hash}">{wallet_name}</a>' 
-                            send_telegram_notification(wallet_address, message, value, usd_value, tx['hash'], blockchain )
+                            # message = f'\n➡️ 🚨 Outgoing  transaction detected 🚨\n->📬 : {wallet_name} @ {wallet_address}'
+                            message = f'<a href="https://etherscan.io/address/{wallet_address}">{wallet_name}</a>' 
+                            send_telegram_notification(wallet_address, message, value, usd_value, tx['hash'], blockchain, tx_methodId,TransferOut)
                             #print(f'\n{message}, Value: {value} {blockchain.upper()}, ${usd_value:.2f}\n')
 
 
@@ -245,6 +306,7 @@ def monitor_wallets():
                 print(f'An error occurred: {e}')
                 # Sleep for 10 seconds before trying again
                 time.sleep(10)
+            
 
 
 #Creates add_wallet function apply
