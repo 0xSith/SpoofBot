@@ -211,6 +211,14 @@ def list(update, context):
     if addresses:
         eth_addresses = []
         bnb_addresses = []
+        #create wallet and contract addresses string array to storage - address & name & message
+        walletAddress = []
+        contractAddress = []        
+        walletName = []
+        contractName = []
+        messageContract = ""
+        messageWallet = ""
+
 
         for i_address in addresses:
             blockchain, address, name, type = i_address.split(':')
@@ -221,25 +229,56 @@ def list(update, context):
                 bnb_addresses.append((address, name))
 
         message = "The following addresses are currently being monitored\n"
-        message += "\n"
+        
+
+
 
         if eth_addresses:
-            message += "Ethereum Addresses:\n"
+            message += "Ethereum Addresses:\n\n"
 
             #The enumerate function returns both the index i
             # and the value address, name for each element in the list.
             #Unpacks the tuple in message var
             for i, (address, name, type) in enumerate(eth_addresses):
-                message += f"{i+1}. {type} {address} as {name}\n"
+                    #print message when /list command
 
-            message += "\n"
+                    #two type of address case : Wallet and Contract
+                    #WALLET CASE
+                    if (type == "wallet"): 
+                        #setup data for wallet including name + Wallet address.
+                        walletAddress.append(address)
+                        walletName.append(name)
+                        #shorten the Wallet address
+                        walletChop = [(address[i:i+5]) for i in range(0, len(address), 5)]         
+                        #message format               
+                        messageWallet += f"{name}:{walletChop[0]}...{walletChop[len(walletChop)-2]}{walletChop[len(walletChop)-1]}\n"
+
+                    #CONTRACT CASE
+                    if (type == "contract"):
+                        contractAddress.append(address)
+                        #setup data for contract including name + Contract address.
+                        contractName.append(name)
+                        #shorten the Contract address
+                        contractChop = [(address[i:i+5]) for i in range(0, len(address), 5)]
+                        #message format
+                        messageContract += f"${name}:{contractChop[0]}...{contractChop[len(contractChop)-2]}{contractChop[len(contractChop)-1]}\n"
+
+        #Combined 2 messageContract and messageWallet into 1 message
+        message += messageContract
+        message += f"\n\n"
+        message += messageWallet
+
+
+
 
         if bnb_addresses:
             message += "Binance Addresses:\n"
             for i, (address, name) in enumerate(bnb_addresses):
                 message += f"{i+1}. {address} as {name} \n"
+        
+        #send out message
         context.bot.send_message(chat_id=update.message.chat_id, text=message)
-
+    #If message error
     else:
         message = "There are no addresses currently being monitored."
         context.bot.send_message(chat_id=update.message.chat_id, text=message)
