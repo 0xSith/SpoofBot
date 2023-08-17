@@ -234,6 +234,41 @@ def checkDuplicate(address):
     if address in compareAddresses: return True
     else: return False
 
+
+def changeName(originalName, newName):
+    file_path = "watched_addresses.txt"
+
+    # Read the existing content of the file
+    with open(file_path, 'r') as f:
+        #lines = each line of the text file
+        lines = f.readlines()
+
+    # Modify the data in memory
+    #create new array to storage any changes
+    modified_lines = []
+    for line in lines:
+        words = line.strip().split(':')
+        #check conditions
+        if len(words) >= 4 and words[2] == originalName:
+            #modified newName in the txt file
+            words[2] = newName
+            #put them into the right format and add them into the text
+            modified_line = ':'.join(words) + '\n'
+            modified_lines.append(modified_line)
+
+        else:
+            modified_lines.append(line)
+            
+
+
+    # Write the modified data back to the file
+    with open(file_path, 'w') as f:
+        f.writelines(modified_lines)
+
+
+            
+
+
 def remove_address(addy):
 
     with open("watched_addresses.txt", "r") as file:
