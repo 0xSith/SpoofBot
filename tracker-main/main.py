@@ -284,6 +284,18 @@ def list(update, context):
         context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
+def edit(update, context):
+    originalName = context.args[0]
+    newName = context.args[1]
+
+    changeName(originalName,newName)
+    message = f'{originalName} is successfully changed to {newName}'
+    context.bot.send_message(chat_id=update.message.chat_id, text=message)
+
+    
+
+
+
 # Initialization of telegram bot through telegram packages
 
 from telegram.ext import Updater, CommandHandler
@@ -295,11 +307,13 @@ start_handler = CommandHandler('start', start)
 add_handler = CommandHandler('add', add)
 remove_handler = CommandHandler('remove', remove)
 list_handler = CommandHandler('list', list)
+editName_handler = CommandHandler('editName', edit)
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(add_handler)
 dispatcher.add_handler(remove_handler)
 dispatcher.add_handler(list_handler)
+dispatcher.add_handler(editName_handler)
 
 updater.start_polling()
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram bot started.")
